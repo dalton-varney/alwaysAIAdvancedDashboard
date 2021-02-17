@@ -1,0 +1,8 @@
+{
+  "targetProtocol": "ssh+docker:",
+  "targetHostname": "dvarney@192.168.68.112",
+  "targetPath": "alwaysai/captureDashboard",
+  "dockerImageId": "sha256:e59a0f73686517bf83e2ca93094e6cc6cfeae12ae50612a3922144c05c59c1e8",
+  "targetHardware": "jetson",
+  "deviceId": "6b3ff569-c97f-48c4-8c3f-48735a38171d"
+}

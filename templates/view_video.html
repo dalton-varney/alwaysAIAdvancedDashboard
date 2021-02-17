@@ -25,16 +25,18 @@
         </div>
     </nav>
     <div class="container" min-width= "720px" width="80%">
+
+        <div class="container" min-width= "1024px" width="100%">
+          <a href="{{url_for('index', filename=filename)}}"><button class="btn home-btn"><i class="fa fa-home"></i> Home</button></a>
+          <a href="{{url_for('videos')}}"><button class="btn data-btn"><i class="fa fa-files-o"></i> View All Data</button></a>
+        </div>
         <div class="dash-sub-title">
           <h1>Video Viewer: {{ video }}</h1>
         </div>
 
         <div class="card-deck">
             <div style="width: 70%; padding: 20px;">
-              <div class="container" min-width= "1024px" width="100%">
-                <a href="{{url_for('index', filename=filename)}}"><button class="btn home-btn"><i class="fa fa-home"></i> Home</button></a>
-                <a href="{{url_for('videos')}}"><button class="btn data-btn"><i class="fa fa-files-o"></i> View All Data</button></a>
-              </div>
+
               <br>
               <br>
                 {% if image %}

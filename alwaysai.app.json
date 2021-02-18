@@ -1,7 +1,8 @@
 {
   "models": {
     "alwaysai/mobilenet_ssd": 4,
-    "alwaysai/TRT_ssd_mobilenet_v1_coco_hand_detection_nano": 2
+    "alwaysai/hand_detection": 5,
+    "alwaysai/mobilenet_ssd_face": 3
   },
   "scripts": {
     "start": "python app.py"

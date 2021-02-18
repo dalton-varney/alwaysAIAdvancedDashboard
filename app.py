@@ -16,7 +16,7 @@ socketio_logger = logging.getLogger('socketio')
 socketio = SocketIO(app, logger=socketio_logger, engineio_logger=socketio_logger)
 SAMPLE_RATE = 25
 SESSION = time.strftime("%d%H%M%S", time.localtime())
-video_stream = edgeiq.WebcamVideoStream(cam=0)
+video_stream = edgeiq.WebcamVideoStream(cam=1)
 
 @app.route('/')
 def index():
@@ -54,14 +54,14 @@ def write_data():
             t_wait = (1 / SAMPLE_RATE) - t_end
             if t_wait > 0:
                 time.sleep(t_wait)
-
+            time.sleep(0.01)
             if controller.is_writing() == False:
                 print("ended")
                 controller.update_text('Data Collection Ended')
                 print('Data Collection Ended')
                 break
 
-            socketio.sleep(0.0001)
+            socketio.sleep(0.01)
 
 @socketio.on('stop_writing')
 def stop_writing():
@@ -164,11 +164,11 @@ class CVClient(eventlet_threading.Thread):
     def run(self):
         print("Starting Up")
         #Object Detection
-        obj_detect=edgeiq.ObjectDetection("alwaysai/mobilenet_ssd")
-        hand_detect=edgeiq.ObjectDetection("alwaysai/TRT_ssd_mobilenet_v1_coco_hand_detection_nano")
+        obj_detect=edgeiq.ObjectDetection("alwaysai/mobilenet_ssd_face")
+        hand_detect=edgeiq.ObjectDetection("alwaysai/hand_detection")
 
-        obj_detect.load(engine=edgeiq.Engine.DNN_CUDA)
-        hand_detect.load(engine=edgeiq.Engine.TENSOR_RT)
+        obj_detect.load(engine=edgeiq.Engine.DNN)
+        hand_detect.load(engine=edgeiq.Engine.DNN)
         tracker = edgeiq.CentroidTracker(deregister_frames=30)
 
         print("Loaded model:\n{}\n".format(obj_detect.model_id))
@@ -196,7 +196,7 @@ class CVClient(eventlet_threading.Thread):
             if self.HANDS:
                 people = edgeiq.filter_predictions_by_label(hand_results.predictions, ['hand'])
             else:
-                people = edgeiq.filter_predictions_by_label(results.predictions, ['person'])
+                people = edgeiq.filter_predictions_by_label(results.predictions, ['Face'])
             tracked_people = tracker.update(people)
 
             people = []
@@ -204,8 +204,8 @@ class CVClient(eventlet_threading.Thread):
                 if self.HANDS:
                     prediction.label = 'Hand'
                 else:
-                    prediction.label = 'Person'
-                people.append(prediction)
+                    prediction.label = 'Face'
+                #people.append(prediction)
             if self.HANDS:
                 frame = edgeiq.markup_image(
                         ogframe, hand_results.predictions, colors=obj_detect.colors)
@@ -324,8 +324,8 @@ class Controller(object):
 
     def start(self):
         self.cvclient.start()
-        print('alwaysAI Dashboard http://localhost:5000')
-        socketio.run(app=app, host='0.0.0.0', port=5000)
+        print('alwaysAI Dashboard http://localhost:3000')
+        socketio.run(app=app, host='0.0.0.0', port=3000)
 
     def close(self):
         self.fps.stop()

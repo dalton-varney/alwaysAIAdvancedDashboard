@@ -1,0 +1,31 @@
+{
+  "id": "alwaysai/mobilenet_ssd_face",
+  "accuracy": "",
+  "description": "A human face detector based on MobileNet Single Shot Detector Network.",
+  "inference_time": 0.17524,
+  "license": "Apache-2.0",
+  "mean_average_precision_top_1": null,
+  "mean_average_precision_top_5": null,
+  "public": true,
+  "dataset": "WIDER",
+  "website_url": "https://github.com/BeloborodovDS/MobilenetSSDFace",
+  "model_parameters": {
+    "framework_type": "caffe",
+    "config_file": "models/ssd-face.prototxt",
+    "size": [
+      300,
+      300
+    ],
+    "model_file": "models/ssd-face.caffemodel",
+    "label_file": "labels/labels.txt",
+    "scalefactor": 0.007843,
+    "mean": [
+      127.5,
+      127.5,
+      127.5
+    ],
+    "crop": false,
+    "purpose": "ObjectDetection"
+  },
+  "version": 3
+}

@@ -165,10 +165,10 @@ class CVClient(eventlet_threading.Thread):
         print("Starting Up")
         #Object Detection
         obj_detect=edgeiq.ObjectDetection("alwaysai/mobilenet_ssd")
-        hand_detect=edgeiq.ObjectDetection("alwaysai/TRT_ssd_mobilenet_v1_coco_hand_detection_nano")
+        hand_detect=edgeiq.ObjectDetection("alwaysai/hand_detection")
 
         obj_detect.load(engine=edgeiq.Engine.DNN_CUDA)
-        hand_detect.load(engine=edgeiq.Engine.TENSOR_RT)
+        hand_detect.load(engine=edgeiq.Engine.DNN_CUDA)
         tracker = edgeiq.CentroidTracker(deregister_frames=30)
 
         print("Loaded model:\n{}\n".format(obj_detect.model_id))

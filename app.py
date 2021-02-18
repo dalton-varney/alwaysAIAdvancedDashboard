@@ -4,9 +4,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
-import dash_table
 from dash.exceptions import PreventUpdate
-import plotly.graph_objects as go
+import pandas as pd
 import time
 import edgeiq
 from helpers import *
@@ -31,14 +30,6 @@ video_stream = edgeiq.WebcamVideoStream(cam=0)
 def index():
     """Home page."""
     return render_template('index.html')
-
-@socketio.on('connect')
-def connect_cv():
-    print('[INFO] connected: {}'.format(request.sid))
-
-@socketio.on('disconnect')
-def disconnect_cv():
-    print('[INFO] disconnected: {}'.format(request.sid))
 
 @socketio.on('write_data')
 def write_data():
@@ -98,9 +89,10 @@ def take_snapshot():
 
 @socketio.on('close_app')
 def close_app():
-    print('Stop Signal Received')
+    print('Closing App...')
     controller.close_writer()
     controller.close()
+
 
 @app.route('/download/<filename>', methods=['GET'])
 def download(filename):
@@ -144,37 +136,33 @@ dash_app = dash.Dash(
     external_stylesheets=[dbc.themes.LUX]
 )
 
+df = pd.DataFrame({
+"Fruit": ["Apples", "Oranges", "Bananas", "Apples", "Oranges", "Bananas"],
+"Amount": [4, 1, 2, 2, 4, 5],
+"City": ["SF", "SF", "SF", "Montreal", "Montreal", "Montreal"]
+})
+all_options = {
+    'America': ['New York City', 'San Francisco', 'Cincinnati'],
+    'Canada': [u'Montréal', 'Toronto', 'Ottawa']
+}
+fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
 # Dash Layout
-dash_app.layout = dbc.Container(fluid=True, children=[
-    # body
-    dash_table.DataTable(
-        id="logs",
-        data=[],
-        columns=[],
-        style_as_list_view=False,
-        page_action="native",
-        page_size= 10,
-        export_format="csv",
-        style_header={
-            'backgroundColor': 'rgba(0,0,0,0.2)',
-            'border': '1px solid white',
-            'font-family': 'Nunito Sans'
-        },
-        style_cell={
-            'backgroundColor': 'rgba(0,0,0,0.2)',
-            'color': 'black',
-            'text-align': 'left',
-            'font-size': '14px',
-            'font-family': 'Nunito Sans'
-        },
-        style_data={
-            'border': '1px solid white'
-        },
-        sort_by={
-            'column_id': 'timestamp',
-            'direction': 'desc'
-        })
-    ,
+dash_app.layout = html.Div(children=[
+    html.H1('Hello Dash'),
+
+    html.Div('''
+        Dash: A web application framework for Python.
+    '''),
+    dcc.RadioItems(
+        id='countries-radio',
+        options=[{'label': k, 'value': k} for k in all_options.keys()],
+        value='America'
+    ),
+    dcc.RadioItems(id='cities-radio'),
+    dcc.Graph(
+        id='example-graph',
+        figure=fig
+    ),
     # automatically update periodically
     dcc.Interval(
         id='interval-component',
@@ -185,10 +173,14 @@ dash_app.layout = dbc.Container(fluid=True, children=[
 
 # Dash Callbacks
 @dash_app.callback(
-    output=[Output("logs", "data"), Output("logs", "columns")],
+    output=[Output("example-graph", "figure"), Output("cities-radio", "options")],
     inputs=[Input('interval-component', 'n_intervals')])
 def render_log_table(n_intervals):
-    df = pd.DataFrame()
+    df = pd.DataFrame({
+        "Fruit": ["Apples", "Oranges", "Bananas", "Apples", "Oranges", "Bananas"],
+        "Amount": [4, 1, 2, 2, 4, 5],
+        "City": ["SF", "SF", "SF", "Montreal", "Montreal", "Montreal"]
+        })
     return df.to_dict('records'), [{"name": i, "id": i} for i in df.columns]
 
 
@@ -206,6 +198,7 @@ class CVClient(eventlet_threading.Thread):
         """
         self._stream_fps = SAMPLE_RATE
         self.fps = fps
+        self.Ended = False
         self._last_update_t = time.time()
         self._wait_t = (1/self._stream_fps)
         self.exit_event = exit_event
@@ -235,7 +228,7 @@ class CVClient(eventlet_threading.Thread):
         hand_detect.load(engine=edgeiq.Engine.DNN_CUDA)
         tracker = edgeiq.CentroidTracker(deregister_frames=30)
 
-        print("Loaded model:\n{}\n".format(obj_detect.model_id))
+        print("Loaded model:\n{}\n{}\n".format(obj_detect.model_id, hand_detect.model_id))
         print("Engine: {}".format(obj_detect.engine))
         print("Accelerator: {}\n".format(obj_detect.accelerator))
 
@@ -250,33 +243,35 @@ class CVClient(eventlet_threading.Thread):
 
         # loop detection
         while True:
+
             #Apply Object Detection model to each frame
             ogframe = video_stream.read()
-            results = obj_detect.detect_objects(ogframe, confidence_level=.5)
-            if self.HANDS:
-                hand_results = hand_detect.detect_objects(ogframe, confidence_level=.5)
 
-            #Sort out the people and hands and count them
+            # Check Status of Hands to determine which objection detection model to run
             if self.HANDS:
-                people = edgeiq.filter_predictions_by_label(hand_results.predictions, ['hand'])
+                results = hand_detect.detect_objects(ogframe, confidence_level=.5)
+                people = edgeiq.filter_predictions_by_label(results.predictions, ['hand'])
             else:
+                results = obj_detect.detect_objects(ogframe, confidence_level=.5)
                 people = edgeiq.filter_predictions_by_label(results.predictions, ['person'])
-            tracked_people = tracker.update(people)
 
+            # Keep track of people detected
+            tracked_people = tracker.update(people)
             people = []
+
+            #Label the results appropriately
             for (object_id, prediction) in tracked_people.items():
                 if self.HANDS:
                     prediction.label = 'Hand'
                 else:
                     prediction.label = 'Person'
                 people.append(prediction)
-            if self.HANDS:
-                frame = edgeiq.markup_image(
-                        ogframe, hand_results.predictions, colors=obj_detect.colors)
-            else:
-                frame = edgeiq.markup_image(
-                        ogframe, results.predictions, colors=obj_detect.colors)
 
+            # alter the frame with the prediction results (But save the original for collection)
+            frame = edgeiq.markup_image(
+                    ogframe, results.predictions, colors=obj_detect.colors)
+
+            # People counting to estimate occupancy
             new_entries = set(tracked_people) - set(prev_tracked_people)
             for entry in new_entries:
                 logs.append('Person {} entered'.format(entry))
@@ -289,6 +284,7 @@ class CVClient(eventlet_threading.Thread):
 
             prev_tracked_people = dict(tracked_people)
 
+            #Text Output in the log window
             if self.HANDS:
                 text = ["Model: {}".format(hand_detect.model_id)]
             else:
@@ -299,18 +295,13 @@ class CVClient(eventlet_threading.Thread):
             text.append('Current Occupancy:')
             if self.HANDS:
                 text.append("{} Hands".format(str(currentPeople)))
-                text.append('\n')
-                text.append('Objects:')
-                for prediction in hand_results.predictions:
-                    text.append("{}: {:2.2f}%".format(
-                        prediction.label, prediction.confidence * 100))
             else:
                 text.append("{} Person".format(str(currentPeople)))
-                text.append('\n')
-                text.append('Objects:')
-                for prediction in results.predictions:
-                    text.append("{}: {:2.2f}%".format(
-                        prediction.label, prediction.confidence * 100))
+            text.append('\n')
+            text.append('Objects:')
+            for prediction in results.predictions:
+                text.append("{}: {:2.2f}%".format(
+                    prediction.label, prediction.confidence * 100))
             text.append(self.writer.text)
             text.append('\n')
             text.append('\n')
@@ -324,7 +315,7 @@ class CVClient(eventlet_threading.Thread):
 
             self.fps.update()
 
-            if self.check_exit():
+            if self.Ended:
                 video_stream.stop()
                 break
 
@@ -388,19 +379,19 @@ class Controller(object):
 
     def start(self):
         self.cvclient.start()
-        print('alwaysAI Dashboard http://localhost:5000')
+        print('alwaysAI Dashboard on http://localhost:5000')
         socketio.run(app=app, host='0.0.0.0', port=5000)
 
     def close(self):
+        self.cvclient.Ended = True
+        if self.cvclient.is_alive():
+            self.cvclient.close()
+            self.cvclient.join()
         self.fps.stop()
         print("elapsed time: {:.2f}".format(self.fps.get_elapsed_seconds()))
         print("approx. FPS: {:.2f}".format(self.fps.compute_fps()))
 
-        if self.cvclient.is_alive():
-            self.cvclient.close()
-            self.cvclient.join()
-
-        print("Program Ending")
+        print("Program Complete - Thanks for using alwaysAI")
 
     def close_writer(self):
         self.cvclient.writer.write = False

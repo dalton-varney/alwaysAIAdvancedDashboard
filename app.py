@@ -54,14 +54,14 @@ def write_data():
             t_wait = (1 / SAMPLE_RATE) - t_end
             if t_wait > 0:
                 time.sleep(t_wait)
-
+            time.sleep(0.01)
             if controller.is_writing() == False:
                 print("ended")
                 controller.update_text('Data Collection Ended')
                 print('Data Collection Ended')
                 break
 
-            socketio.sleep(0.0001)
+            socketio.sleep(0.01)
 
 @socketio.on('stop_writing')
 def stop_writing():

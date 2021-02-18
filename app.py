@@ -1,3 +1,12 @@
+import plotly.express as px
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import dash_bootstrap_components as dbc
+import dash_table
+from dash.exceptions import PreventUpdate
+import plotly.graph_objects as go
 import time
 import edgeiq
 from helpers import *
@@ -109,8 +118,7 @@ def videos():
 
 @app.route('/analytics', methods=['GET'])
 def analytics():
-
-    return render_template('analytics.html')
+    return redirect('/dash/')
 
 @app.route('/view_video/<filename>', methods=['GET'])
 def view_video(filename):
@@ -126,6 +134,62 @@ def delete(filename):
     if file is not None:
         delete_file(file)
     return redirect(url_for('videos'))
+
+# Dash Setup
+dash_app = dash.Dash(
+    __name__,
+    server=app, # associate Flask
+    assets_folder="./static",
+    url_base_pathname='/dash/',
+    external_stylesheets=[dbc.themes.LUX]
+)
+
+# Dash Layout
+dash_app.layout = dbc.Container(fluid=True, children=[
+    # body
+    dash_table.DataTable(
+        id="logs",
+        data=[],
+        columns=[],
+        style_as_list_view=False,
+        page_action="native",
+        page_size= 10,
+        export_format="csv",
+        style_header={
+            'backgroundColor': 'rgba(0,0,0,0.2)',
+            'border': '1px solid white',
+            'font-family': 'Nunito Sans'
+        },
+        style_cell={
+            'backgroundColor': 'rgba(0,0,0,0.2)',
+            'color': 'black',
+            'text-align': 'left',
+            'font-size': '14px',
+            'font-family': 'Nunito Sans'
+        },
+        style_data={
+            'border': '1px solid white'
+        },
+        sort_by={
+            'column_id': 'timestamp',
+            'direction': 'desc'
+        })
+    ,
+    # automatically update periodically
+    dcc.Interval(
+        id='interval-component',
+        interval=1*5000, # in milliseconds
+        n_intervals=0
+    )
+])
+
+# Dash Callbacks
+@dash_app.callback(
+    output=[Output("logs", "data"), Output("logs", "columns")],
+    inputs=[Input('interval-component', 'n_intervals')])
+def render_log_table(n_intervals):
+    df = pd.DataFrame()
+    return df.to_dict('records'), [{"name": i, "id": i} for i in df.columns]
 
 
 class CVClient(eventlet_threading.Thread):
@@ -192,7 +256,7 @@ class CVClient(eventlet_threading.Thread):
             if self.HANDS:
                 hand_results = hand_detect.detect_objects(ogframe, confidence_level=.5)
 
-            #Sort out the people and count them
+            #Sort out the people and hands and count them
             if self.HANDS:
                 people = edgeiq.filter_predictions_by_label(hand_results.predictions, ['hand'])
             else:

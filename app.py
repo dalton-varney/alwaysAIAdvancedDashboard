@@ -36,7 +36,6 @@ def write_data():
     controller.start_writer()
     socketio.sleep(0.05)
     controller.update_text('Data Collection Started')
-    print('start signal received')
     file_name = file_set_up("video", SESSION)
 
     with edgeiq.VideoWriter(output_path=file_name, fps=SAMPLE_RATE, codec='H264') as video_writer:
@@ -56,7 +55,6 @@ def write_data():
                 time.sleep(t_wait)
             time.sleep(0.01)
             if controller.is_writing() == False:
-                print("ended")
                 controller.update_text('Data Collection Ended')
                 print('Data Collection Ended')
                 break
@@ -186,8 +184,8 @@ def render_log_table(n_intervals):
 
 class CVClient(eventlet_threading.Thread):
     def __init__(self, fps, exit_event):
-        """The original code was created by Eric VanBuhler
-        (https://github.com/alwaysai/video-streamer) and is modified here.
+        """The original code was created by Eric VanBuhler, Lila Mullany, and Dalton Varney
+        Copyright alwaysAI, Inc. 2021
 
         Initializes a customizable streamer object that
         communicates with a flask server via sockets.
@@ -198,8 +196,8 @@ class CVClient(eventlet_threading.Thread):
         """
         self._stream_fps = SAMPLE_RATE
         self.fps = fps
-        self.Ended = False
         self._last_update_t = time.time()
+        self.Ended = False
         self._wait_t = (1/self._stream_fps)
         self.exit_event = exit_event
         self.writer = SampleWriter()
@@ -388,10 +386,8 @@ class Controller(object):
             self.cvclient.close()
             self.cvclient.join()
         self.fps.stop()
-        print("elapsed time: {:.2f}".format(self.fps.get_elapsed_seconds()))
-        print("approx. FPS: {:.2f}".format(self.fps.compute_fps()))
 
-        print("Program Complete - Thanks for using alwaysAI")
+
 
     def close_writer(self):
         self.cvclient.writer.write = False
@@ -421,4 +417,5 @@ if __name__ == "__main__":
     try:
         controller.start()
     finally:
+        print("Program Complete - Thanks for using alwaysAI")
         controller.close()
